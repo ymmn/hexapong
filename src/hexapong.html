@@ -2,10 +2,12 @@
 <head>
 	<title>Hexa-Pong</title>
 	<script type="text/javascript" src="../lib/easel.js"></script>
-	<script src='https://cdn.firebase.com/v0/firebase.js'></script>
+	<script type="text/javascript" src="../lib/sylvester.js"></script>
+	<!--<script src='https://cdn.firebase.com/v0/firebase.js'></script>-->
 	<script src="hexapong.js"></script>
 </head>
 <body onload="hexapong.init()">
+	<p><span id="fps"></span></p>
 	<canvas id="canvas" width="960" height="400"></canvas>
 </body>
 </html>
