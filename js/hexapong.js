@@ -26,7 +26,10 @@ var hexapong = (function hexapong() {
     var lfHeld = Array(3),
         rtHeld = Array(3);
     var paddles, ball, arena;
-    var stage;
+    var stage,
+        gameState = {
+            paddles: {}
+        };
 
 
 
@@ -300,7 +303,7 @@ var hexapong = (function hexapong() {
     }
 
 
-    function PongPaddle(ini_pos, direction_vec, bounds, player_num) {
+    function PongPaddle(ini_pos, direction_vec, bounds, player_num, index) {
 
         /**
          * we pick either the x-axis or y-axis to keep track of the paddle's
@@ -359,24 +362,16 @@ var hexapong = (function hexapong() {
         };
 
         this.tick = function () {
-            var newx, newy;
+            var newx, newy, should_move;
             /* move paddle if left control is being clicked */
             if (lfHeld[player_num]) {
                 newx = _shape.x - direction_vec.x() * PADDLE_SPEED;
                 newy = _shape.y - direction_vec.y() * PADDLE_SPEED;
                 /* bounds check */
                 if (_majorAxis == X_MAJOR) {
-                    if (newx >= bounds.left.x()) {
-                        //console.log(newx + " is bigger than " + bounds.left.x());
-                        _shape.x = newx;
-                        _shape.y = newy;
-                    }
+                    should_move = (newx >= bounds.left.x());
                 } else {
-                    if (newy >= bounds.left.y()) {
-                        // console.log( newy + " is bigger than " + bounds.left.y());
-                        _shape.x = newx;
-                        _shape.y = newy;
-                    }
+                    should_move = (newy >= bounds.left.y());
                 }
             }
             /* move paddle if right control is being clicked */
@@ -385,18 +380,17 @@ var hexapong = (function hexapong() {
                 newy = _shape.y + direction_vec.y() * PADDLE_SPEED;
                 /* bounds check */
                 if (_majorAxis == X_MAJOR) {
-                    if ((newx + _xlen) <= bounds.right.x()) {
-                        // console.log( (newx + _xlen) + " is smaller than " + bounds.right.x());
-                        _shape.x = newx;
-                        _shape.y = newy;
-                    }
+                    should_move = ((newx + _xlen) <= bounds.right.x());
                 } else {
-                    if ((newy + _ylen) <= bounds.right.y()) {
-                        // console.log( (newy + _ylen) + " is smaller than " + bounds.right.y());
-                        _shape.x = newx;
-                        _shape.y = newy;
-                    }
+                    should_move = ((newy + _ylen) <= bounds.right.y());
                 }
+            }
+            if (should_move) {
+                //console.log(newx + " is bigger than " + bounds.left.x());
+                _shape.x = newx;
+                _shape.y = newy;
+                gameState["paddles"][index] = $V([_shape.x, _shape.y]);
+                updateServer();
             }
         };
 
@@ -409,18 +403,19 @@ var hexapong = (function hexapong() {
 
     ///////////////////// Networking //////////////////////
     function updateServer() {
-        // fill this in later
-        var newstate = null;
-        server.set(newstate);
+        server.set(gameState);
     }
 
     function onServerUpdate(snapshot) {
         var newstate = snapshot.val();
-        // do something with new state
+        for(var i in newstate.paddles) {
+            paddles[parseInt(i, 10)].shape.x = newstate.paddles[i].elements[0];
+            paddles[parseInt(i, 10)].shape.y = newstate.paddles[i].elements[1];
+        }
     }
 
-    // var server = new Firebase('https://ymn.firebaseio.com/hexapong');
-    // server.limit(10).on('value', onServerUpdate);
+    var server = new Firebase('https://ymn.firebaseio.com/hexapong');
+    server.limit(10).on('value', onServerUpdate);
 
 
 
@@ -491,7 +486,7 @@ var hexapong = (function hexapong() {
                 p2.subtract(p1).toUnitVector(), {
                     left: p1,
                     right: p2
-                }, 0);
+                }, 0, i);
 
             stage.addChild(paddles[i].shape);
         }
