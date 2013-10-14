@@ -2,13 +2,14 @@ var hexapong = (function hexapong() {
 
     ///////////////////// Declarations of variables and constants //////////////////////
     var e;
-    var PADDLE_SPEED = 4,
+    var PADDLE_SPEED = 3,
         PADDLE_DIMS = {
-            length: 120,
+            length: 80,
             width: 10
         },
         BALL_RADIUS = 10,
-        TARGET_FPS = 20;
+        TARGET_FPS = 40,
+        DEFAULT_BALL_SPEED = 10;
 
     var KEYCODE_ENTER = 13,
         KEYCODE_SPACE = 32,
@@ -84,6 +85,18 @@ var hexapong = (function hexapong() {
     ///////////////////// Class Definitions //////////////////////
     var Geometry = {
 
+        rotateVectorClockwiseByDegrees: function(v, deg) {
+            deg *= -1; /* we want clockwise */
+            var m = Math.sqrt(v.x * v.x + v.y * v.y);
+            var prevAngle = Math.atan(v.y / v.x);
+            var newAngle = (Math.PI * deg / 180) + prevAngle;
+            /* make the y negative due to the coordinate system */
+            return {
+                x: m * Math.cos(newAngle),
+                y: -1 * (m * Math.sin(newAngle))
+            };
+        }, 
+
         /**
          * Detects whether a point is inside a convex polygon or not
          */
@@ -127,21 +140,15 @@ var hexapong = (function hexapong() {
             return proj_v.add(p1);
         },
 
+        getMidPoint: function(a, b) { 
+            return a.add(b).multiply(0.5);
+        }, 
 
-
-    // def segment_circle(seg_a, seg_b, circ_pos, circ_rad):
-    //     closest = closest_point_on_seg(seg_a, seg_b, circ_pos)
-    //     dist_v = circ_pos - closest
-    //     if dist_v.len() > circ_rad:
-    //         return vec(0, 0)
-    //     if dist_v.len() <= 0:
-    //         raise ValueError, "Circle's center is exactly on segment"
-    //     offset = dist_v / dist_v.len() * (circ_rad - dist_v.len())
-    //     return offset
 
         lineIntersectCircle: function(line, circle) {
             var closestP = Geometry.getClosestPointToCircle(line[0], line[1], circle.center);
             var dist_v = circle.center.subtract(closestP);
+            // console.log(dist_v.magnitude());
             return dist_v.magnitude() <= circle.radius;
         },
 
@@ -196,10 +203,17 @@ var hexapong = (function hexapong() {
         _shape.y = 200;
         var _boundingPoints;
 
+        /**
+         * returns true if a point (vector) is inside the game arena
+         */ 
         this.isPointInside = function (p) {
             return Geometry.isPointInsidePolygon(p, _boundingPoints);
         };
 
+        /**
+         * returns an array of vectors with each vector being a point of
+         * the polygon forming the arena
+         */
         this.getBoundingPoints = function () {
             _boundingPoints = _shape.graphics._instructions.map(function (a) {
                 return a.params;
@@ -215,14 +229,20 @@ var hexapong = (function hexapong() {
     }
 
 
-    function PongBall(direction_vec) {
+    function PongBall(direction_vec, start_loc) {
 
-        var _speed = 3;
+        var _speed = DEFAULT_BALL_SPEED;
         var _shape = new createjs.Shape();
         _shape.graphics.beginFill("red").drawCircle(0, 0, BALL_RADIUS);
-        _shape.x = 0;
-        _shape.y = 10;
+        _shape.x = start_loc.x();
+        _shape.y = start_loc.y();
 
+        /**
+         * Takes in a rectangle given as an array of 4 points (vectors), and
+         * checks whether a collision occurs with the ball. If so, it elastically
+         * collides with it accordingly.
+         * returns true if it collided, otherwise false
+         */
         var _collideWithPaddle = function (rect) {
             var circle = {
                 center: $V([_shape.x, _shape.y]),
@@ -238,20 +258,29 @@ var hexapong = (function hexapong() {
             return false;
         };
 
+
+        /**
+         * restarts the ball in the middle of the arena
+         */
+        var _reset = function() {
+            _shape.x = start_loc.x();
+            _shape.y = start_loc.y();
+        };
+
         this.tick = function (paddles, arena) {
-            for (var i = 1; i < 2; i++) {
+            for (var i = 0; i < paddles.length; i++) {
                 if (_collideWithPaddle(paddles[i].getBoundingPoints())) {
                     _shape.x += direction_vec.x() * _speed;
                     _shape.y += direction_vec.y() * _speed;
+                    break;
                     /* while (_collideWithPaddle(paddles[i].getBoundingPoints())) {
                         _shape.x += direction_vec.x() * _speed;
                         _shape.y += direction_vec.y() * _speed;
                    }*/
                 }
-                break;
             }
             if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
-                _shape.x = 0;
+                _reset();
             }
             _shape.x += direction_vec.x() * _speed;
             _shape.y += direction_vec.y() * _speed;
@@ -263,11 +292,26 @@ var hexapong = (function hexapong() {
 
     function PongPaddle(ini_pos, direction_vec, bounds) {
 
+        /**
+         * we pick either the x-axis or y-axis to keep track of the paddle's 
+         * bounds. We don't need to do both since we know the direction vector
+         * is parallel to the arena
+         */
+        var X_MAJOR = "x";
+        var Y_MAJOR = "y";
+        var _majorAxis = Math.abs(direction_vec.x()) > Math.abs(direction_vec.y()) ? X_MAJOR : Y_MAJOR;
+
+
         var _shape = new createjs.Shape();
         _shape.graphics.beginFill('rgba(255,0,0,1)').drawRect(0, 0, PADDLE_DIMS.length, PADDLE_DIMS.width);
         _shape.rotation = Math.atan(direction_vec.y() / direction_vec.x()) * (180 / Math.PI);
-        _shape.x = ini_pos.x;
-        _shape.y = ini_pos.y;
+
+        var v = direction_vec.toUnitVector().multiply(PADDLE_DIMS.length);
+        var _xlen = v.x(); // the paddle's length on the x-axis
+        var _ylen = v.y(); // the paddle's length on the y-axis
+        /* start the paddle in the middle of its arena edge */
+        _shape.x = ini_pos.x() - 0.5*_xlen;
+        _shape.y = ini_pos.y() - 0.5*_ylen;
 
         /**
          * Returns the four corners of the rectangle in an object keys:
@@ -280,21 +324,21 @@ var hexapong = (function hexapong() {
         this.getBoundingPoints = function () {
             var ret = {};
             ret.tl = $V([_shape.x, _shape.y]);
-            var rotated = rotateVectorClockwiseByDegrees({
+            var rotated = Geometry.rotateVectorClockwiseByDegrees({
                 x: 0,
                 y: -1 * PADDLE_DIMS.width
             }, _shape.rotation);
             ret.bl = $V([_shape.x + rotated.x,
                 _shape.y + rotated.y
             ]);
-            rotated = rotateVectorClockwiseByDegrees({
+            rotated = Geometry.rotateVectorClockwiseByDegrees({
                 x: PADDLE_DIMS.length,
                 y: -1 * PADDLE_DIMS.width
             }, _shape.rotation);
             ret.br = $V([_shape.x + rotated.x,
                 _shape.y + rotated.y
             ]);
-            rotated = rotateVectorClockwiseByDegrees({
+            rotated = Geometry.rotateVectorClockwiseByDegrees({
                 x: PADDLE_DIMS.length,
                 y: 0
             }, _shape.rotation);
@@ -311,9 +355,18 @@ var hexapong = (function hexapong() {
                 newx = _shape.x - direction_vec.x() * PADDLE_SPEED;
                 newy = _shape.y - direction_vec.y() * PADDLE_SPEED;
                 /* bounds check */
-                if (newx >= bounds.left.x() && newy >= bounds.left.y()) {
-                    _shape.x = newx;
-                    _shape.y = newy;
+                if (_majorAxis == X_MAJOR){
+                   if(newx >= bounds.left.x()) {
+                        //console.log(newx + " is bigger than " + bounds.left.x());
+                        _shape.x = newx;
+                        _shape.y = newy;
+                   }
+                }  else{
+                   if(newy >= bounds.left.y()) {
+                        // console.log( newy + " is bigger than " + bounds.left.y());
+                       _shape.x = newx;
+                       _shape.y = newy;
+                   }
                 }
             }
             /* move paddle if right control is being clicked */
@@ -321,9 +374,18 @@ var hexapong = (function hexapong() {
                 newx = _shape.x + direction_vec.x() * PADDLE_SPEED;
                 newy = _shape.y + direction_vec.y() * PADDLE_SPEED;
                 /* bounds check */
-                if (newx <= bounds.right.x() && newy <= bounds.right.y()) {
-                    _shape.x = newx;
-                    _shape.y = newy;
+                if (_majorAxis == X_MAJOR){
+                   if( (newx + _xlen) <= bounds.right.x()) {
+                        // console.log( (newx + _xlen) + " is smaller than " + bounds.right.x());
+                        _shape.x = newx;
+                        _shape.y = newy;
+                   }
+                }  else{
+                   if( (newy + _ylen) <= bounds.right.y()) {
+                        // console.log( (newy + _ylen) + " is smaller than " + bounds.right.y());
+                       _shape.x = newx;
+                       _shape.y = newy;
+                   }
                 }
             }
         };
@@ -363,18 +425,7 @@ var hexapong = (function hexapong() {
 
 
     /////////////////////  Game loop and init //////////////////////
-    function rotateVectorClockwiseByDegrees(v, deg) {
-        deg *= -1; /* we want clockwise */
-        var m = Math.sqrt(v.x * v.x + v.y * v.y);
-        var prevAngle = Math.atan(v.y / v.x);
-        var newAngle = (Math.PI * deg / 180) + prevAngle;
-        /* make the y negative due to the coordinate system */
-        return {
-            x: m * Math.cos(newAngle),
-            y: -1 * (m * Math.sin(newAngle))
-        };
-    }
-
+    
     function tick(event) {
         paddles.map(function (p) {
             p.tick();
@@ -395,40 +446,46 @@ var hexapong = (function hexapong() {
         stage = new createjs.Stage(canvas);
 
 
+        /* first create the arena */
         arena = new PongArena();
         stage.addChild(arena.shape);
 
-        ball = new PongBall(Geometry.makeNormalVectorOfAngle(90));
-        ball.shape.x = arena.shape.x;
-        ball.shape.y = arena.shape.y;
+        /* now add the ball */
+        ball = new PongBall(Geometry.makeNormalVectorOfAngle(360*Math.random()),
+            $V([arena.shape.x, arena.shape.y]));
         stage.addChild(ball.shape);
 
+        
+        stage.update();
+        /* testing */
+        var arenaPoints = arena.getBoundingPoints();
+        for (var i in arenaPoints) {
+            addPoint(arenaPoints[i], stage);
+        }
+
+        /* create the paddles */
         paddles = Array(6);
         for (var i = 0; i < paddles.length; i++) {
-            paddles[i] = new PongPaddle({
-                x: 10 + 200 * i,
-                y: 10
-            }, $V([1, 0]), {
-                left: $V([0, 0]),
-                right: $V([50, 50])
+
+            /* making p1 and p2 consistent by x-coordinate makes life easier */
+            var p1 = arenaPoints[i];
+            var p2 = arenaPoints[(i+1) % arenaPoints.length];
+            if(p2.x() < p1.x()){
+                var t = p2;
+                p2 = p1;
+                p1 = t;
+            }
+
+            /* place the paddle in the middle of the edge, and give it its two endpoints */
+            paddles[i] = new PongPaddle(Geometry.getMidPoint(p1,p2),
+                p2.subtract(p1).toUnitVector(), {
+                left: p1,
+                right: p2
             });
+
             stage.addChild(paddles[i].shape);
         }
-        paddles[1].shape.x = 380;
-        paddles[1].shape.y = 350;
-        paddles[1].shape.rotation = -45;
-        var ps = paddles[1].getBoundingPoints();
-        for (i in ps) {
-            addPoint(ps[i], stage);
-        }
-        window.Geometry = Geometry;
 
-
-        stage.update();
-        ps = arena.getBoundingPoints();
-        for (i in ps) {
-            addPoint(ps[i], stage);
-        }
 
         //start game timer   
         if (!createjs.Ticker.hasEventListener("tick")) {
