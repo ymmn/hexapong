@@ -504,7 +504,7 @@ var hexapong = (function hexapong() {
                 p2.subtract(p1).toUnitVector(), {
                     left: p1,
                     right: p2
-                }, 0, i);
+                }, i % 3, i);
 
             stage.addChild(paddles[i].shape);
         }
