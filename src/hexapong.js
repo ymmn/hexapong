@@ -1,21 +1,3 @@
-var _$V = $V;
-window.$V = function(){
-
-    /* sylvester vector */
-    var v = _$V.apply(this, arguments);
-
-    /* add extra methods to the vector */
-    v.x = function(){
-        return v.elements[0];
-    };
-
-    v.y = function(){
-        return v.elements[1];
-    };
-
-   return v;
-};
-
 var hexapong = (function hexapong() {
 
     ///////////////////// Declarations of variables and constants //////////////////////
@@ -107,7 +89,7 @@ var hexapong = (function hexapong() {
          */
         isPointInsidePolygon: function (p, bounds) {
             var _getSide = function (a, b) {
-                var x = a.elements[0] * b.elements[1] - a.elements[1] * b.elements[0];
+                var x = a.x() * b.y() - a.y() * b.x();
                 if (x < 0) return -1;
                 else if (x > 1) return 1;
                 else return 0;
@@ -170,7 +152,7 @@ var hexapong = (function hexapong() {
         },
 
         getUnitNormalVectorFromEdge: function (edge) {
-            return $V([-1 * edge.elements[1], edge.elements[0]]).toUnitVector();
+            return $V([-1 * edge.y(), edge.x()]).toUnitVector();
         },
 
         calculateVectorOfReflection: function (collisionAngle, normal) {
@@ -236,11 +218,11 @@ var hexapong = (function hexapong() {
                     console.log(paddles[i].getBoundingPoints());
                 }
                     bang = true;
-                    _shape.x += direction_vec.elements[0] * _speed;
-                    _shape.y += direction_vec.elements[1] * _speed;
+                    _shape.x += direction_vec.x() * _speed;
+                    _shape.y += direction_vec.y() * _speed;
                     /* while (_collideWithPaddle(paddles[i].getBoundingPoints())) {
-                        _shape.x += direction_vec.elements[0] * _speed;
-                        _shape.y += direction_vec.elements[1] * _speed;
+                        _shape.x += direction_vec.x() * _speed;
+                        _shape.y += direction_vec.y() * _speed;
                    }*/
                 }
                 break;
@@ -248,8 +230,8 @@ var hexapong = (function hexapong() {
             if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
                 _shape.x = 0;
             }
-            _shape.x += direction_vec.elements[0] * _speed;
-            _shape.y += direction_vec.elements[1] * _speed;
+            _shape.x += direction_vec.x() * _speed;
+            _shape.y += direction_vec.y() * _speed;
         };
 
         this.shape = _shape;
@@ -260,7 +242,7 @@ var hexapong = (function hexapong() {
 
         var _shape = new createjs.Shape();
         _shape.graphics.beginFill('rgba(255,0,0,1)').drawRect(0, 0, PADDLE_DIMS.length, PADDLE_DIMS.width);
-        _shape.rotation = Math.atan(direction_vec.elements[1] / direction_vec.elements[0]) * (180 / Math.PI);
+        _shape.rotation = Math.atan(direction_vec.y() / direction_vec.x()) * (180 / Math.PI);
         _shape.x = ini_pos.x;
         _shape.y = ini_pos.y;
 
@@ -305,20 +287,20 @@ var hexapong = (function hexapong() {
             var newx, newy;
             /* move paddle if left control is being clicked */
             if (lfHeld) {
-                newx = _shape.x - direction_vec.elements[0] * PADDLE_SPEED;
-                newy = _shape.y - direction_vec.elements[1] * PADDLE_SPEED;
+                newx = _shape.x - direction_vec.x() * PADDLE_SPEED;
+                newy = _shape.y - direction_vec.y() * PADDLE_SPEED;
                 /* bounds check */
-                if (newx >= bounds.left.elements[0] && newy >= bounds.left.elements[1]) {
+                if (newx >= bounds.left.x() && newy >= bounds.left.y()) {
                     _shape.x = newx;
                     _shape.y = newy;
                 }
             }
             /* move paddle if right control is being clicked */
             if (rtHeld) {
-                newx = _shape.x + direction_vec.elements[0] * PADDLE_SPEED;
-                newy = _shape.y + direction_vec.elements[1] * PADDLE_SPEED;
+                newx = _shape.x + direction_vec.x() * PADDLE_SPEED;
+                newy = _shape.y + direction_vec.y() * PADDLE_SPEED;
                 /* bounds check */
-                if (newx <= bounds.right.elements[0] && newy <= bounds.right.elements[1]) {
+                if (newx <= bounds.right.x() && newy <= bounds.right.y()) {
                     _shape.x = newx;
                     _shape.y = newy;
                 }
@@ -353,8 +335,8 @@ var hexapong = (function hexapong() {
     function addPoint(pos, stage) {
         var _shape = new createjs.Shape();
         _shape.graphics.beginFill("blue").drawCircle(0, 0, 2);
-        _shape.x = pos.elements[0];
-        _shape.y = pos.elements[1];
+        _shape.x = pos.x();
+        _shape.y = pos.y();
         stage.addChild(_shape);
     }
 
@@ -416,6 +398,7 @@ var hexapong = (function hexapong() {
         paddles[1].shape.rotation = -45;
         var ps = paddles[1].getBoundingPoints();
         for (i in ps) {
+            console.log(ps[i]);
             addPoint(ps[i], stage);
         }
         window.Geometry = Geometry;
@@ -425,6 +408,7 @@ var hexapong = (function hexapong() {
         stage.update();
         ps = arena.getBoundingPoints();
         for (i in ps) {
+            console.log(ps[i]);
             addPoint(ps[i], stage);
         }
 
