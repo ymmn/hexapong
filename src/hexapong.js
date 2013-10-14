@@ -16,12 +16,15 @@ var hexapong = (function hexapong() {
         KEYCODE_UP = 38,
         KEYCODE_LEFT = 37,
         KEYCODE_RIGHT = 39,
-        KEYCODE_W = 87,
-        KEYCODE_A = 65,
-        KEYCODE_D = 68;
+        KEYCODE_M = 77,
+        KEYCODE_N = 78,
+        KEYCODE_X = 88,
+        KEYCODE_Z = 90;
 
 
-    var lfHeld, rtHeld;
+
+    var lfHeld = Array(3),
+        rtHeld = Array(3);
     var paddles, ball, arena;
     var stage;
 
@@ -37,20 +40,23 @@ var hexapong = (function hexapong() {
             e = window.event;
         }
         switch (e.keyCode) {
-        case KEYCODE_SPACE:
-            shootHeld = true;
-            return false;
-        case KEYCODE_A:
         case KEYCODE_LEFT:
-            lfHeld = true;
+            lfHeld[0] = true;
             return false;
-        case KEYCODE_D:
         case KEYCODE_RIGHT:
-            rtHeld = true;
+            rtHeld[0] = true;
             return false;
-        case KEYCODE_W:
-        case KEYCODE_UP:
-            fwdHeld = true;
+        case KEYCODE_Z:
+            lfHeld[1] = true;
+            return false;
+        case KEYCODE_X:
+            rtHeld[1] = true;
+            return false;
+        case KEYCODE_N:
+            lfHeld[2] = true;
+            return false;
+        case KEYCODE_M:
+            rtHeld[2] = true;
             return false;
         }
     }
@@ -61,20 +67,23 @@ var hexapong = (function hexapong() {
             e = window.event;
         }
         switch (e.keyCode) {
-        case KEYCODE_SPACE:
-            shootHeld = false;
-            break;
-        case KEYCODE_A:
         case KEYCODE_LEFT:
-            lfHeld = false;
+            lfHeld[0] = false;
             break;
-        case KEYCODE_D:
         case KEYCODE_RIGHT:
-            rtHeld = false;
+            rtHeld[0] = false;
             break;
-        case KEYCODE_W:
-        case KEYCODE_UP:
-            fwdHeld = false;
+        case KEYCODE_Z:
+            lfHeld[1] = false;
+            break;
+        case KEYCODE_X:
+            rtHeld[1] = false;
+            break;
+        case KEYCODE_N:
+            lfHeld[2] = false;
+            break;
+        case KEYCODE_M:
+            rtHeld[2] = false;
             break;
         }
     }
@@ -85,7 +94,7 @@ var hexapong = (function hexapong() {
     ///////////////////// Class Definitions //////////////////////
     var Geometry = {
 
-        rotateVectorClockwiseByDegrees: function(v, deg) {
+        rotateVectorClockwiseByDegrees: function (v, deg) {
             deg *= -1; /* we want clockwise */
             var m = Math.sqrt(v.x * v.x + v.y * v.y);
             var prevAngle = Math.atan(v.y / v.x);
@@ -95,7 +104,7 @@ var hexapong = (function hexapong() {
                 x: m * Math.cos(newAngle),
                 y: -1 * (m * Math.sin(newAngle))
             };
-        }, 
+        },
 
         /**
          * Detects whether a point is inside a convex polygon or not
@@ -126,26 +135,26 @@ var hexapong = (function hexapong() {
             return true;
         },
 
-        getClosestPointToCircle: function(p1, p2, c) {
+        getClosestPointToCircle: function (p1, p2, c) {
             var line = p2.subtract(p1);
             var pt = c.subtract(p1);
             var l_unit = line.toUnitVector();
             var proj = pt.dot(l_unit);
-            if(proj <= 0) {
+            if (proj <= 0) {
                 return p1;
-            } else if (proj >= line.magnitude()){
+            } else if (proj >= line.magnitude()) {
                 return p2;
             }
             var proj_v = l_unit.multiply(proj);
             return proj_v.add(p1);
         },
 
-        getMidPoint: function(a, b) { 
+        getMidPoint: function (a, b) {
             return a.add(b).multiply(0.5);
-        }, 
+        },
 
 
-        lineIntersectCircle: function(line, circle) {
+        lineIntersectCircle: function (line, circle) {
             var closestP = Geometry.getClosestPointToCircle(line[0], line[1], circle.center);
             var dist_v = circle.center.subtract(closestP);
             // console.log(dist_v.magnitude());
@@ -165,10 +174,10 @@ var hexapong = (function hexapong() {
             ];
             var ret;
             for (var i = 0; i < edges.length; i++) {
-               ret = Geometry.lineIntersectCircle(edges[i], circle);
-               if(ret) {
+                ret = Geometry.lineIntersectCircle(edges[i], circle);
+                if (ret) {
                     return edges[i];
-               }
+                }
             }
             return null;
         },
@@ -205,7 +214,7 @@ var hexapong = (function hexapong() {
 
         /**
          * returns true if a point (vector) is inside the game arena
-         */ 
+         */
         this.isPointInside = function (p) {
             return Geometry.isPointInsidePolygon(p, _boundingPoints);
         };
@@ -262,7 +271,7 @@ var hexapong = (function hexapong() {
         /**
          * restarts the ball in the middle of the arena
          */
-        var _reset = function() {
+        var _reset = function () {
             _shape.x = start_loc.x();
             _shape.y = start_loc.y();
         };
@@ -272,11 +281,13 @@ var hexapong = (function hexapong() {
                 if (_collideWithPaddle(paddles[i].getBoundingPoints())) {
                     _shape.x += direction_vec.x() * _speed;
                     _shape.y += direction_vec.y() * _speed;
-                    break;
-                    /* while (_collideWithPaddle(paddles[i].getBoundingPoints())) {
+                    /* make sure we get the ball outside of the paddle */
+                    while (_collideWithPaddle(paddles[i].getBoundingPoints())) {
                         _shape.x += direction_vec.x() * _speed;
                         _shape.y += direction_vec.y() * _speed;
-                   }*/
+                    }
+                    break;
+
                 }
             }
             if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
@@ -290,10 +301,10 @@ var hexapong = (function hexapong() {
     }
 
 
-    function PongPaddle(ini_pos, direction_vec, bounds) {
+    function PongPaddle(ini_pos, direction_vec, bounds, player_num) {
 
         /**
-         * we pick either the x-axis or y-axis to keep track of the paddle's 
+         * we pick either the x-axis or y-axis to keep track of the paddle's
          * bounds. We don't need to do both since we know the direction vector
          * is parallel to the arena
          */
@@ -310,8 +321,8 @@ var hexapong = (function hexapong() {
         var _xlen = v.x(); // the paddle's length on the x-axis
         var _ylen = v.y(); // the paddle's length on the y-axis
         /* start the paddle in the middle of its arena edge */
-        _shape.x = ini_pos.x() - 0.5*_xlen;
-        _shape.y = ini_pos.y() - 0.5*_ylen;
+        _shape.x = ini_pos.x() - 0.5 * _xlen;
+        _shape.y = ini_pos.y() - 0.5 * _ylen;
 
         /**
          * Returns the four corners of the rectangle in an object keys:
@@ -351,41 +362,41 @@ var hexapong = (function hexapong() {
         this.tick = function () {
             var newx, newy;
             /* move paddle if left control is being clicked */
-            if (lfHeld) {
+            if (lfHeld[player_num]) {
                 newx = _shape.x - direction_vec.x() * PADDLE_SPEED;
                 newy = _shape.y - direction_vec.y() * PADDLE_SPEED;
                 /* bounds check */
-                if (_majorAxis == X_MAJOR){
-                   if(newx >= bounds.left.x()) {
+                if (_majorAxis == X_MAJOR) {
+                    if (newx >= bounds.left.x()) {
                         //console.log(newx + " is bigger than " + bounds.left.x());
                         _shape.x = newx;
                         _shape.y = newy;
-                   }
-                }  else{
-                   if(newy >= bounds.left.y()) {
+                    }
+                } else {
+                    if (newy >= bounds.left.y()) {
                         // console.log( newy + " is bigger than " + bounds.left.y());
-                       _shape.x = newx;
-                       _shape.y = newy;
-                   }
+                        _shape.x = newx;
+                        _shape.y = newy;
+                    }
                 }
             }
             /* move paddle if right control is being clicked */
-            if (rtHeld) {
+            if (rtHeld[player_num]) {
                 newx = _shape.x + direction_vec.x() * PADDLE_SPEED;
                 newy = _shape.y + direction_vec.y() * PADDLE_SPEED;
                 /* bounds check */
-                if (_majorAxis == X_MAJOR){
-                   if( (newx + _xlen) <= bounds.right.x()) {
+                if (_majorAxis == X_MAJOR) {
+                    if ((newx + _xlen) <= bounds.right.x()) {
                         // console.log( (newx + _xlen) + " is smaller than " + bounds.right.x());
                         _shape.x = newx;
                         _shape.y = newy;
-                   }
-                }  else{
-                   if( (newy + _ylen) <= bounds.right.y()) {
+                    }
+                } else {
+                    if ((newy + _ylen) <= bounds.right.y()) {
                         // console.log( (newy + _ylen) + " is smaller than " + bounds.right.y());
-                       _shape.x = newx;
-                       _shape.y = newy;
-                   }
+                        _shape.x = newx;
+                        _shape.y = newy;
+                    }
                 }
             }
         };
@@ -425,7 +436,7 @@ var hexapong = (function hexapong() {
 
 
     /////////////////////  Game loop and init //////////////////////
-    
+
     function tick(event) {
         paddles.map(function (p) {
             p.tick();
@@ -451,11 +462,11 @@ var hexapong = (function hexapong() {
         stage.addChild(arena.shape);
 
         /* now add the ball */
-        ball = new PongBall(Geometry.makeNormalVectorOfAngle(360*Math.random()),
+        ball = new PongBall(Geometry.makeNormalVectorOfAngle(360 * Math.random()),
             $V([arena.shape.x, arena.shape.y]));
         stage.addChild(ball.shape);
 
-        
+
         stage.update();
         /* testing */
         var arenaPoints = arena.getBoundingPoints();
@@ -469,19 +480,19 @@ var hexapong = (function hexapong() {
 
             /* making p1 and p2 consistent by x-coordinate makes life easier */
             var p1 = arenaPoints[i];
-            var p2 = arenaPoints[(i+1) % arenaPoints.length];
-            if(p2.x() < p1.x()){
+            var p2 = arenaPoints[(i + 1) % arenaPoints.length];
+            if (p2.x() < p1.x()) {
                 var t = p2;
                 p2 = p1;
                 p1 = t;
             }
 
             /* place the paddle in the middle of the edge, and give it its two endpoints */
-            paddles[i] = new PongPaddle(Geometry.getMidPoint(p1,p2),
+            paddles[i] = new PongPaddle(Geometry.getMidPoint(p1, p2),
                 p2.subtract(p1).toUnitVector(), {
-                left: p1,
-                right: p2
-            });
+                    left: p1,
+                    right: p2
+                }, i % 3);
 
             stage.addChild(paddles[i].shape);
         }
