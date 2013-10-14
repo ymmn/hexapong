@@ -1,3 +1,21 @@
+var _$V = $V;
+window.$V = function(){
+
+    /* sylvester vector */
+    var v = _$V.apply(this, arguments);
+
+    /* add extra methods to the vector */
+    v.x = function(){
+        return v.elements[0];
+    };
+
+    v.y = function(){
+        return v.elements[1];
+    };
+
+   return v;
+};
+
 var hexapong = (function hexapong() {
 
     ///////////////////// Declarations of variables and constants //////////////////////
@@ -213,7 +231,11 @@ var hexapong = (function hexapong() {
         this.tick = function (paddles, arena) {
             for (var i = 0; i < paddles.length; i++) {
                 if (_collideWithPaddle(paddles[i].getBoundingPoints())) {
+                    if(!window.bang){
                     console.log("Colliding with paddle " + i);
+                    console.log(paddles[i].getBoundingPoints());
+                }
+                    bang = true;
                     _shape.x += direction_vec.elements[0] * _speed;
                     _shape.y += direction_vec.elements[1] * _speed;
                     /* while (_collideWithPaddle(paddles[i].getBoundingPoints())) {
@@ -238,7 +260,7 @@ var hexapong = (function hexapong() {
 
         var _shape = new createjs.Shape();
         _shape.graphics.beginFill('rgba(255,0,0,1)').drawRect(0, 0, PADDLE_DIMS.length, PADDLE_DIMS.width);
-        _shape.rotation = Math.atan(direction_vec.y / direction_vec.x) * (180 / Math.PI);
+        _shape.rotation = Math.atan(direction_vec.elements[1] / direction_vec.elements[0]) * (180 / Math.PI);
         _shape.x = ini_pos.x;
         _shape.y = ini_pos.y;
 
@@ -257,23 +279,25 @@ var hexapong = (function hexapong() {
                 x: 0,
                 y: -1 * PADDLE_DIMS.width
             }, _shape.rotation);
-            ret.bl = $V([paddles[1].shape.x + rotated.x,
-                paddles[1].shape.y + rotated.y
+            ret.bl = $V([_shape.x + rotated.x,
+                _shape.y + rotated.y
             ]);
             rotated = rotateVectorClockwiseByDegrees({
                 x: PADDLE_DIMS.length,
                 y: -1 * PADDLE_DIMS.width
             }, _shape.rotation);
-            ret.br = $V([paddles[1].shape.x + rotated.x,
-                paddles[1].shape.y + rotated.y
+            ret.br = $V([_shape.x + rotated.x,
+                _shape.y + rotated.y
             ]);
             rotated = rotateVectorClockwiseByDegrees({
                 x: PADDLE_DIMS.length,
                 y: 0
             }, _shape.rotation);
-            ret.tr = $V([paddles[1].shape.x + rotated.x,
-                paddles[1].shape.y + rotated.y
+            ret.tr = $V([_shape.x + rotated.x,
+                _shape.y + rotated.y
             ]);
+            //console.log(_shape.rotation);
+            //console.log(rotated);
             return ret;
         };
 
@@ -401,6 +425,7 @@ var hexapong = (function hexapong() {
             addPoint(ps[i], stage);
         }
         window.Geometry = Geometry;
+        window.rrr = rotateVectorClockwiseByDegrees;
 
 
         stage.update();
