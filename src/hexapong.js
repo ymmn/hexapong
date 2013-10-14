@@ -308,7 +308,7 @@ var hexapong = (function hexapong() {
                 newx = _shape.x - direction_vec.elements[0] * PADDLE_SPEED;
                 newy = _shape.y - direction_vec.elements[1] * PADDLE_SPEED;
                 /* bounds check */
-                if (newx >= bounds.left.x && newy >= bounds.left.y) {
+                if (newx >= bounds.left.elements[0] && newy >= bounds.left.elements[1]) {
                     _shape.x = newx;
                     _shape.y = newy;
                 }
@@ -318,7 +318,7 @@ var hexapong = (function hexapong() {
                 newx = _shape.x + direction_vec.elements[0] * PADDLE_SPEED;
                 newy = _shape.y + direction_vec.elements[1] * PADDLE_SPEED;
                 /* bounds check */
-                if (newx <= bounds.right.x && newy <= bounds.right.y) {
+                if (newx <= bounds.right.elements[0] && newy <= bounds.right.elements[1]) {
                     _shape.x = newx;
                     _shape.y = newy;
                 }
@@ -406,14 +406,8 @@ var hexapong = (function hexapong() {
                 x: 10 + 200 * i,
                 y: 10
             }, $V([1, 0]), {
-                left: {
-                    x: 0,
-                    y: 0
-                },
-                right: {
-                    x: 50,
-                    y: 50
-                }
+                left: $V([0, 0]),
+                right: $V([50, 50])
             });
             stage.addChild(paddles[i].shape);
         }
