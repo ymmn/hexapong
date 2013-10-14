@@ -289,10 +289,12 @@ var hexapong = (function hexapong() {
                         _shape.x += direction_vec.x() * _speed;
                         _shape.y += direction_vec.y() * _speed;
                     }
+                    createjs.Sound.play("bounce", createjs.Sound.INTERUPT_LATE);
                     break;
                 }
             }
             if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
+                createjs.Sound.play("death", createjs.Sound.INTERRUPT_LATE, 0, 0, 0, 0.2);
                 _reset();
             }
             _shape.x += direction_vec.x() * _speed;
@@ -430,6 +432,17 @@ var hexapong = (function hexapong() {
 
 
     /////////////////////  Game loop and init //////////////////////
+    function updateLoading() {
+        //messageField.text = "Loading " + (preload.progress*100|0) + "%"
+        console.log("Loading " + (preload.progress*100|0) + "%");
+        stage.update();
+    }
+
+    function doneLoading(event) {
+        // start the music
+        createjs.Sound.play("music", createjs.Sound.INTERRUPT_NONE, 0, 0, -1, 0.05);
+    }
+
 
     function tick(event) {
         paddles.map(function (p) {
@@ -445,6 +458,11 @@ var hexapong = (function hexapong() {
     p.init = function () {
         if (window.top != window) {
             document.getElementById("header").style.display = "none";
+        }
+
+        if (!createjs.Sound.initializeDefaultPlugins()) {
+            console.log("we've got sound problems");
+            return;
         }
 
         canvas = document.getElementById('canvas');
@@ -503,6 +521,19 @@ var hexapong = (function hexapong() {
         setInterval(function () {
             fpsOut.innerHTML = createjs.Ticker.getMeasuredFPS().toFixed(1) + "fps";
         }, 1000);
+
+        // begin loading content (only sounds to load)
+        var manifest = [
+            {id:"music", src:"assets/music.mp3"},
+            {id:"bounce", src:"assets/bounce.mp3"},
+            {id:"death", src:"assets/death.mp3"}
+        ];
+
+        preload = new createjs.LoadQueue();
+        preload.installPlugin(createjs.Sound);
+        preload.addEventListener("complete", doneLoading); // add an event listener for when load is completed
+        preload.addEventListener("progress", updateLoading);
+        preload.loadManifest(manifest);
 
     };
 
