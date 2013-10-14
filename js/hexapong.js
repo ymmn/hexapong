@@ -2,7 +2,7 @@ var hexapong = (function hexapong() {
 
     ///////////////////// Declarations of variables and constants //////////////////////
     var e;
-    var PADDLE_SPEED = 3,
+    var PADDLE_SPEED = 5,
         PADDLE_DIMS = {
             length: 80,
             width: 10
@@ -210,7 +210,7 @@ var hexapong = (function hexapong() {
      */
     function PongArena() {
         var _shape = new createjs.Shape();
-        _shape.graphics.beginFill('rgba(255,255,205,1)').drawPolyStar(0, 0, 200, 6, 0, -90);
+        _shape.graphics.beginRadialGradientFill(["#FF0","#0FF"], [0, 1], 0, 0, 0, 0, 0, 200).drawPolyStar(0, 0, 200, 6, 0, -90);
         _shape.x = 480;
         _shape.y = 200;
         var _boundingPoints;
@@ -245,7 +245,7 @@ var hexapong = (function hexapong() {
 
         var _speed = DEFAULT_BALL_SPEED;
         var _shape = new createjs.Shape();
-        _shape.graphics.beginFill("red").drawCircle(0, 0, BALL_RADIUS);
+        _shape.graphics.beginRadialGradientFill(["#F80","#F00"], [0.2, 0.8], 0, 0, 0, 0, 0, BALL_RADIUS).drawCircle(0, 0, BALL_RADIUS);
         _shape.x = start_loc.x();
         _shape.y = start_loc.y();
 
