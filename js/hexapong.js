@@ -28,7 +28,8 @@ var hexapong = (function hexapong() {
     var paddles, ball, arena;
     var stage,
         gameState = {
-            paddles: {}
+            paddles: {},
+            heartbeat: {}
         };
 
 
@@ -305,7 +306,7 @@ var hexapong = (function hexapong() {
     }
 
 
-    function PongPaddle(ini_pos, direction_vec, bounds, player_num, index) {
+    function PongPaddle(ini_pos, direction_vec, bounds, player_num, index, len) {
 
         /**
          * we pick either the x-axis or y-axis to keep track of the paddle's
@@ -318,10 +319,12 @@ var hexapong = (function hexapong() {
 
 
         var _shape = new createjs.Shape();
-        _shape.graphics.beginFill('rgba(255,0,0,1)').drawRect(0, 0, PADDLE_DIMS.length, PADDLE_DIMS.width);
+        var _length = PADDLE_DIMS.length;
+        if(len !== undefined) _length = len;
+        _shape.graphics.beginFill('rgba(255,0,0,1)').drawRect(0, 0, _length, PADDLE_DIMS.width);
         _shape.rotation = Math.atan(direction_vec.y() / direction_vec.x()) * (180 / Math.PI);
 
-        var v = direction_vec.toUnitVector().multiply(PADDLE_DIMS.length);
+        var v = direction_vec.toUnitVector().multiply(_length);
         var _xlen = v.x(); // the paddle's length on the x-axis
         var _ylen = v.y(); // the paddle's length on the y-axis
         /* start the paddle in the middle of its arena edge */
@@ -347,14 +350,14 @@ var hexapong = (function hexapong() {
                 _shape.y + rotated.y
             ]);
             rotated = Geometry.rotateVectorClockwiseByDegrees({
-                x: PADDLE_DIMS.length,
+                x: _length,
                 y: -1 * PADDLE_DIMS.width
             }, _shape.rotation);
             ret.br = $V([_shape.x + rotated.x,
                 _shape.y + rotated.y
             ]);
             rotated = Geometry.rotateVectorClockwiseByDegrees({
-                x: PADDLE_DIMS.length,
+                x: _length,
                 y: 0
             }, _shape.rotation);
             ret.tr = $V([_shape.x + rotated.x,
@@ -400,6 +403,20 @@ var hexapong = (function hexapong() {
 
     }
 
+    function Wall(ini_pos, direction_vec, bounds, player_num, index) {
+
+        var hex_side_len = bounds.left.subtract(bounds.right).magnitude();
+        var _paddle = new PongPaddle(ini_pos, direction_vec, bounds, player_num, index, hex_side_len);
+
+        this.tick = function(){};
+
+        this.getBoundingPoints = _paddle.getBoundingPoints;
+
+        this.isWall = true;
+        this.shape = _paddle.shape;
+        window.shape = _paddle.shape;
+
+    }
 
 
 
@@ -411,8 +428,10 @@ var hexapong = (function hexapong() {
     function onServerUpdate(snapshot) {
         var newstate = snapshot.val();
         for(var i in newstate.paddles) {
-            paddles[parseInt(i, 10)].shape.x = newstate.paddles[i].elements[0];
-            paddles[parseInt(i, 10)].shape.y = newstate.paddles[i].elements[1];
+            var p = paddles[parseInt(i, 10)];
+            if(p.isWall) continue;
+            p.shape.x = newstate.paddles[i].elements[0];
+            p.shape.y = newstate.paddles[i].elements[1];
         }
     }
 
@@ -432,6 +451,10 @@ var hexapong = (function hexapong() {
 
 
     /////////////////////  Game loop and init //////////////////////
+    function heartbeat() {
+
+    }
+
     function updateLoading() {
         //messageField.text = "Loading " + (preload.progress*100|0) + "%"
         console.log("Loading " + (preload.progress*100|0) + "%");
@@ -486,6 +509,10 @@ var hexapong = (function hexapong() {
             addPoint(arenaPoints[i], stage);
         }
 
+        var wallPositions = Array(6);
+        wallPositions[1] = true;
+        wallPositions[4] = true;
+
         /* create the paddles */
         paddles = Array(6);
         for (var i = 0; i < paddles.length; i++) {
@@ -500,11 +527,19 @@ var hexapong = (function hexapong() {
             }
 
             /* place the paddle in the middle of the edge, and give it its two endpoints */
-            paddles[i] = new PongPaddle(Geometry.getMidPoint(p1, p2),
-                p2.subtract(p1).toUnitVector(), {
-                    left: p1,
-                    right: p2
-                }, i % 3, i);
+            if (wallPositions[i]) {
+                paddles[i] = new Wall(Geometry.getMidPoint(p1, p2),
+                    p2.subtract(p1).toUnitVector(), {
+                        left: p1,
+                        right: p2
+                    }, i % 3, i);
+            } else {
+                paddles[i] = new PongPaddle(Geometry.getMidPoint(p1, p2),
+                    p2.subtract(p1).toUnitVector(), {
+                        left: p1,
+                        right: p2
+                    }, i % 3, i);
+            }
 
             stage.addChild(paddles[i].shape);
         }
