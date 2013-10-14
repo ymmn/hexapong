@@ -287,7 +287,6 @@ var hexapong = (function hexapong() {
                         _shape.y += direction_vec.y() * _speed;
                     }
                     break;
-
                 }
             }
             if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
