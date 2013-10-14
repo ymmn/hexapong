@@ -113,11 +113,42 @@ var hexapong = (function hexapong() {
             return true;
         },
 
+        getClosestPointToCircle: function(p1, p2, c) {
+            var line = p2.subtract(p1);
+            var pt = c.subtract(p1);
+            var l_unit = line.toUnitVector();
+            var proj = pt.dot(l_unit);
+            if(proj <= 0) {
+                return p1;
+            } else if (proj >= line.magnitude()){
+                return p2;
+            }
+            var proj_v = l_unit.multiply(proj);
+            return proj_v.add(p1);
+        },
+
+
+
+    // def segment_circle(seg_a, seg_b, circ_pos, circ_rad):
+    //     closest = closest_point_on_seg(seg_a, seg_b, circ_pos)
+    //     dist_v = circ_pos - closest
+    //     if dist_v.len() > circ_rad:
+    //         return vec(0, 0)
+    //     if dist_v.len() <= 0:
+    //         raise ValueError, "Circle's center is exactly on segment"
+    //     offset = dist_v / dist_v.len() * (circ_rad - dist_v.len())
+    //     return offset
+
+        lineIntersectCircle: function(line, circle) {
+            var closestP = Geometry.getClosestPointToCircle(line[0], line[1], circle.center);
+            var dist_v = circle.center.subtract(closestP);
+            return dist_v.magnitude() <= circle.radius;
+        },
+
         /**
          * Circle-rectangle collision detection
          */
-        isCircleCollidingWithRect: function (poi, rect) {
-
+        isCircleCollidingWithRect: function (circle, rect) {
             //rectangle edges: TL (top left), TR (top right), BL (bottom left), BR (bottom right)
             var edges = [
                 [rect.tl, rect.tr],
@@ -125,22 +156,14 @@ var hexapong = (function hexapong() {
                 [rect.bl, rect.br],
                 [rect.tr, rect.br]
             ];
-            var colliding = true;
-            var collidingEdge = null;
+            var ret;
             for (var i = 0; i < edges.length; i++) {
-                var edge = edges[i];
-                var d = edge[0].subtract(edge[1]);
-                var innerProd = d.dot(poi);
-                var intervalMin = Math.min(d.dot(edge[0]), d.dot(edge[1]));
-                var intervalMax = Math.max(d.dot(edge[0]), d.dot(edge[1]));
-                if (!(intervalMin <= innerProd && innerProd <= intervalMax)) {
-                    colliding = false;
-                    collidingEdge = d;
-                    break;
-                }
+               ret = Geometry.lineIntersectCircle(edges[i], circle);
+               if(ret) {
+                    return edges[i];
+               }
             }
-
-            return collidingEdge;
+            return null;
         },
 
         /**
@@ -152,7 +175,8 @@ var hexapong = (function hexapong() {
         },
 
         getUnitNormalVectorFromEdge: function (edge) {
-            return $V([-1 * edge.y(), edge.x()]).toUnitVector();
+            var v = edge[1].subtract(edge[0]);
+            return $V([-1 * v.y(), v.x()]).toUnitVector();
         },
 
         calculateVectorOfReflection: function (collisionAngle, normal) {
@@ -200,7 +224,11 @@ var hexapong = (function hexapong() {
         _shape.y = 10;
 
         var _collideWithPaddle = function (rect) {
-            var collidingEdge = Geometry.isCircleCollidingWithRect($V([_shape.x, _shape.y]), rect);
+            var circle = {
+                center: $V([_shape.x, _shape.y]),
+                radius: BALL_RADIUS
+            };
+            var collidingEdge = Geometry.isCircleCollidingWithRect(circle, rect);
 
             if (collidingEdge !== null) {
                 direction_vec = Geometry.calculateVectorOfReflection(direction_vec,
@@ -211,13 +239,8 @@ var hexapong = (function hexapong() {
         };
 
         this.tick = function (paddles, arena) {
-            for (var i = 0; i < paddles.length; i++) {
+            for (var i = 1; i < 2; i++) {
                 if (_collideWithPaddle(paddles[i].getBoundingPoints())) {
-                    if(!window.bang){
-                    console.log("Colliding with paddle " + i);
-                    console.log(paddles[i].getBoundingPoints());
-                }
-                    bang = true;
                     _shape.x += direction_vec.x() * _speed;
                     _shape.y += direction_vec.y() * _speed;
                     /* while (_collideWithPaddle(paddles[i].getBoundingPoints())) {
@@ -278,8 +301,6 @@ var hexapong = (function hexapong() {
             ret.tr = $V([_shape.x + rotated.x,
                 _shape.y + rotated.y
             ]);
-            //console.log(_shape.rotation);
-            //console.log(rotated);
             return ret;
         };
 
@@ -377,7 +398,7 @@ var hexapong = (function hexapong() {
         arena = new PongArena();
         stage.addChild(arena.shape);
 
-        ball = new PongBall(Geometry.makeNormalVectorOfAngle(45));
+        ball = new PongBall(Geometry.makeNormalVectorOfAngle(90));
         ball.shape.x = arena.shape.x;
         ball.shape.y = arena.shape.y;
         stage.addChild(ball.shape);
@@ -393,22 +414,19 @@ var hexapong = (function hexapong() {
             });
             stage.addChild(paddles[i].shape);
         }
-        paddles[1].shape.x = 555;
+        paddles[1].shape.x = 380;
         paddles[1].shape.y = 350;
         paddles[1].shape.rotation = -45;
         var ps = paddles[1].getBoundingPoints();
         for (i in ps) {
-            console.log(ps[i]);
             addPoint(ps[i], stage);
         }
         window.Geometry = Geometry;
-        window.rrr = rotateVectorClockwiseByDegrees;
 
 
         stage.update();
         ps = arena.getBoundingPoints();
         for (i in ps) {
-            console.log(ps[i]);
             addPoint(ps[i], stage);
         }
 
