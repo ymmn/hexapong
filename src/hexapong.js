@@ -381,10 +381,7 @@ var hexapong = (function hexapong() {
             paddles[i] = new PongPaddle({
                 x: 10 + 200 * i,
                 y: 10
-            }, {
-                x: 1,
-                y: 0
-            }, {
+            }, $V([1, 0]), {
                 left: {
                     x: 0,
                     y: 0
