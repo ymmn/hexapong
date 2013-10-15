@@ -410,11 +410,14 @@ var hexapong = (function hexapong() {
             }
             if (should_move) {
                 //console.log(newx + " is bigger than " + bounds.left.x());
-                _shape.x = newx;
-                _shape.y = newy;
-                gameState["paddles"][index] = $V([_shape.x, _shape.y]);
+                // _shape.x = newx;
+                // _shape.y = newy;
+                gameState["paddles"][index] = $V([newx, newy]);
                 gameState.ball = {};
-                updateServer();
+                updateServer(function(){
+                    _shape.x = newx;
+                    _shape.y = newy;
+                });
             }
         };
 
@@ -448,36 +451,38 @@ var hexapong = (function hexapong() {
         });
     }
 
-    function updateServer() {
+    function updateServer(onComplete) {
         gameState.clientId = clientId;
         gameState.timeStamp = (new Date()).getTime();
-        server.set(gameState);
-    }
-
-    function onServerUpdate(snapshot) {
-        var newstate = snapshot.val();
-
-        // if it's our own message, use it to measure ping
-        if (newstate.clientId == clientId) {
-            var ping = (new Date()).getTime() - parseInt(newstate.timeStamp, 10);
+        server.set(gameState, function() {
+            // measure ping
+            var ping = (new Date()).getTime() - gameState.timeStamp;
             accPing += ping;
             pingCnt++;
             if (pingCnt == 50) {
                 accPing = 0;
                 pingCnt = 0;
             }
-        } else {
-            // someone else. update his timestamp so we mark him as active
+
+            onComplete();
+        });
+    }
+
+    function onServerUpdate(snapshot) {
+        var newstate = snapshot.val();
+
+        if (newstate.clientId !== clientId) {
+            // someone else updated server. update his timestamp so we mark him as active
             playerIds[newstate.clientId] = newstate.timeStamp;
+            for (var i in newstate.paddles) {
+                var p = paddles[parseInt(i, 10)];
+                if (p.isWall) continue;
+                p.shape.x = newstate.paddles[i].elements[0];
+                p.shape.y = newstate.paddles[i].elements[1];
+            }
         }
 
 
-        for (var i in newstate.paddles) {
-            var p = paddles[parseInt(i, 10)];
-            if (p.isWall) continue;
-            p.shape.x = newstate.paddles[i].elements[0];
-            p.shape.y = newstate.paddles[i].elements[1];
-        }
         /*
         if (newstate.ball.loc !== undefined) {
             ball.shape.x = newstate.ball.loc.elements[0];
@@ -504,10 +509,6 @@ var hexapong = (function hexapong() {
 
 
     /////////////////////  Game loop and init //////////////////////
-    function heartbeat() {
-
-    }
-
     function updateLoading() {
         //messageField.text = "Loading " + (preload.progress*100|0) + "%"
         console.log("Loading " + (preload.progress * 100 | 0) + "%");
