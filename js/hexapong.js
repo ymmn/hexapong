@@ -29,8 +29,15 @@ var hexapong = (function hexapong() {
     var stage,
         gameState = {
             paddles: {},
+            ball: undefined,
+            clientId: undefined,
             heartbeat: {}
         };
+    var clientId,
+        /* map player ids to their last timestamp */
+        playerIds = {};
+    var accPing = 0,
+        pingCnt = 0;
 
 
 
@@ -211,7 +218,7 @@ var hexapong = (function hexapong() {
      */
     function PongArena() {
         var _shape = new createjs.Shape();
-        _shape.graphics.beginRadialGradientFill(["#FF0","#0FF"], [0, 1], 0, 0, 0, 0, 0, 200).drawPolyStar(0, 0, 200, 6, 0, -90);
+        _shape.graphics.beginRadialGradientFill(["#FF0", "#0FF"], [0, 1], 0, 0, 0, 0, 0, 200).drawPolyStar(0, 0, 200, 6, 0, -90);
         _shape.x = 480;
         _shape.y = 200;
         var _boundingPoints;
@@ -246,7 +253,7 @@ var hexapong = (function hexapong() {
 
         var _speed = DEFAULT_BALL_SPEED;
         var _shape = new createjs.Shape();
-        _shape.graphics.beginRadialGradientFill(["#F80","#F00"], [0.2, 0.8], 0, 0, 0, 0, 0, BALL_RADIUS).drawCircle(0, 0, BALL_RADIUS);
+        _shape.graphics.beginRadialGradientFill(["#F80", "#F00"], [0.2, 0.8], 0, 0, 0, 0, 0, BALL_RADIUS).drawCircle(0, 0, BALL_RADIUS);
         _shape.x = start_loc.x();
         _shape.y = start_loc.y();
 
@@ -280,6 +287,14 @@ var hexapong = (function hexapong() {
             _shape.y = start_loc.y();
         };
 
+        var _updateBallLoc = function () {
+            gameState.ball = {
+                loc: $V([_shape.x, _shape.y]),
+                dir: direction_vec
+            };
+            updateServer();
+        };
+
         this.tick = function (paddles, arena) {
             for (var i = 0; i < paddles.length; i++) {
                 if (_collideWithPaddle(paddles[i].getBoundingPoints())) {
@@ -291,11 +306,13 @@ var hexapong = (function hexapong() {
                         _shape.y += direction_vec.y() * _speed;
                     }
                     createjs.Sound.play("bounce", createjs.Sound.INTERUPT_LATE);
+                    _updateBallLoc();
                     break;
                 }
             }
             if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
                 createjs.Sound.play("death", createjs.Sound.INTERRUPT_LATE, 0, 0, 0, 0.2);
+                // _updateBallLoc();
                 _reset();
             }
             _shape.x += direction_vec.x() * _speed;
@@ -303,6 +320,7 @@ var hexapong = (function hexapong() {
         };
 
         this.shape = _shape;
+        this.direction_vec = _shape;
     }
 
 
@@ -320,7 +338,7 @@ var hexapong = (function hexapong() {
 
         var _shape = new createjs.Shape();
         var _length = PADDLE_DIMS.length;
-        if(len !== undefined) _length = len;
+        if (len !== undefined) _length = len;
         _shape.graphics.beginFill('rgba(255,0,0,1)').drawRect(0, 0, _length, PADDLE_DIMS.width);
         _shape.rotation = Math.atan(direction_vec.y() / direction_vec.x()) * (180 / Math.PI);
 
@@ -395,6 +413,7 @@ var hexapong = (function hexapong() {
                 _shape.x = newx;
                 _shape.y = newy;
                 gameState["paddles"][index] = $V([_shape.x, _shape.y]);
+                gameState.ball = {};
                 updateServer();
             }
         };
@@ -408,7 +427,7 @@ var hexapong = (function hexapong() {
         var hex_side_len = bounds.left.subtract(bounds.right).magnitude();
         var _paddle = new PongPaddle(ini_pos, direction_vec, bounds, player_num, index, hex_side_len);
 
-        this.tick = function(){};
+        this.tick = function () {};
 
         this.getBoundingPoints = _paddle.getBoundingPoints;
 
@@ -421,18 +440,52 @@ var hexapong = (function hexapong() {
 
 
     ///////////////////// Networking //////////////////////
+    function getUniqueId() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0,
+                v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
     function updateServer() {
+        gameState.clientId = clientId;
+        gameState.timeStamp = (new Date()).getTime();
         server.set(gameState);
     }
 
     function onServerUpdate(snapshot) {
         var newstate = snapshot.val();
-        for(var i in newstate.paddles) {
+
+        // if it's our own message, use it to measure ping
+        if (newstate.clientId == clientId) {
+            var ping = (new Date()).getTime() - parseInt(newstate.timeStamp, 10);
+            accPing += ping;
+            pingCnt++;
+            if (pingCnt == 50) {
+                accPing = 0;
+                pingCnt = 0;
+            }
+        } else {
+            // someone else. update his timestamp so we mark him as active
+            playerIds[newstate.clientId] = newstate.timeStamp;
+        }
+
+
+        for (var i in newstate.paddles) {
             var p = paddles[parseInt(i, 10)];
-            if(p.isWall) continue;
+            if (p.isWall) continue;
             p.shape.x = newstate.paddles[i].elements[0];
             p.shape.y = newstate.paddles[i].elements[1];
         }
+        /*
+        if (newstate.ball.loc !== undefined) {
+            ball.shape.x = newstate.ball.loc.elements[0];
+            ball.shape.y = newstate.ball.loc.elements[1];
+            ball.direction_vec = $V([newstate.ball.dir.elements[0],
+                newstate.ball.dir.elements[1]
+            ]);
+        }*/
     }
 
     var server = new Firebase('https://ymn.firebaseio.com/hexapong');
@@ -457,7 +510,7 @@ var hexapong = (function hexapong() {
 
     function updateLoading() {
         //messageField.text = "Loading " + (preload.progress*100|0) + "%"
-        console.log("Loading " + (preload.progress*100|0) + "%");
+        console.log("Loading " + (preload.progress * 100 | 0) + "%");
         stage.update();
     }
 
@@ -488,6 +541,7 @@ var hexapong = (function hexapong() {
             return;
         }
 
+        clientId = getUniqueId();
         canvas = document.getElementById('canvas');
         stage = new createjs.Stage(canvas);
 
@@ -551,25 +605,39 @@ var hexapong = (function hexapong() {
             createjs.Ticker.setFPS(TARGET_FPS);
         }
 
-
-        var fpsOut = document.getElementById('fps');
+        var fpsOut = document.getElementById('fps'),
+            pingOut = document.getElementById('ping'),
+            activePlayersOut = document.getElementById('active-players');
         setInterval(function () {
-            fpsOut.innerHTML = createjs.Ticker.getMeasuredFPS().toFixed(1) + "fps";
+            fpsOut.innerHTML = createjs.Ticker.getMeasuredFPS().toFixed(1) + " fps";
+            pingOut.innerHTML = (accPing / pingCnt).toFixed(1) + " ping";
+            var curTime = (new Date()).getTime();
+            for (var p in playerIds) {
+                if (curTime - playerIds[p] > 3000) {
+                    // remove this inactive player
+                    delete(playerIds[p]);
+                }
+            }
+            activePlayersOut.innerHTML = Object.keys(playerIds).length + " other active players.";
         }, 1000);
 
         // begin loading content (only sounds to load)
-        var manifest = [
-            {id:"music", src:"assets/music.mp3"},
-            {id:"bounce", src:"assets/bounce.mp3"},
-            {id:"death", src:"assets/death.mp3"}
-        ];
+        var manifest = [{
+            id: "music",
+            src: "assets/music.mp3"
+        }, {
+            id: "bounce",
+            src: "assets/bounce.mp3"
+        }, {
+            id: "death",
+            src: "assets/death.mp3"
+        }];
 
         preload = new createjs.LoadQueue();
         preload.installPlugin(createjs.Sound);
         preload.addEventListener("complete", doneLoading); // add an event listener for when load is completed
         preload.addEventListener("progress", updateLoading);
         preload.loadManifest(manifest);
-
     };
 
     return p;
