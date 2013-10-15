@@ -107,14 +107,14 @@ var hexapong = (function hexapong() {
 
         rotateVectorClockwiseByDegrees: function (v, deg) {
             deg *= -1; /* we want clockwise */
-            var m = Math.sqrt(v.x * v.x + v.y * v.y);
-            var prevAngle = Math.atan(v.y / v.x);
+            var m = Math.sqrt(v.x() * v.x() + v.y() * v.y());
+            var prevAngle = Math.atan(v.y() / v.x());
             var newAngle = (Math.PI * deg / 180) + prevAngle;
             /* make the y negative due to the coordinate system */
-            return {
-                x: m * Math.cos(newAngle),
-                y: -1 * (m * Math.sin(newAngle))
-            };
+            return $V([
+                m * Math.cos(newAngle),
+                -1 * (m * Math.sin(newAngle))
+            ]);
         },
 
         /**
@@ -360,26 +360,26 @@ var hexapong = (function hexapong() {
         this.getBoundingPoints = function () {
             var ret = {};
             ret.tl = $V([_shape.x, _shape.y]);
-            var rotated = Geometry.rotateVectorClockwiseByDegrees({
-                x: 0,
-                y: -1 * PADDLE_DIMS.width
-            }, _shape.rotation);
-            ret.bl = $V([_shape.x + rotated.x,
-                _shape.y + rotated.y
+            var rotated = Geometry.rotateVectorClockwiseByDegrees($V([
+                0,
+                -1 * PADDLE_DIMS.width
+            ]), _shape.rotation);
+            ret.bl = $V([_shape.x + rotated.x(),
+                _shape.y + rotated.y()
             ]);
-            rotated = Geometry.rotateVectorClockwiseByDegrees({
-                x: _length,
-                y: -1 * PADDLE_DIMS.width
-            }, _shape.rotation);
-            ret.br = $V([_shape.x + rotated.x,
-                _shape.y + rotated.y
+            rotated = Geometry.rotateVectorClockwiseByDegrees($V([
+                _length,
+                -1 * PADDLE_DIMS.width
+            ]), _shape.rotation);
+            ret.br = $V([_shape.x + rotated.x(),
+                _shape.y + rotated.y()
             ]);
-            rotated = Geometry.rotateVectorClockwiseByDegrees({
-                x: _length,
-                y: 0
-            }, _shape.rotation);
-            ret.tr = $V([_shape.x + rotated.x,
-                _shape.y + rotated.y
+            rotated = Geometry.rotateVectorClockwiseByDegrees($V([
+                _length,
+                0
+            ]), _shape.rotation);
+            ret.tr = $V([_shape.x + rotated.x(),
+                _shape.y + rotated.y()
             ]);
             return ret;
         };
@@ -464,7 +464,7 @@ var hexapong = (function hexapong() {
                 pingCnt = 0;
             }
 
-            onComplete();
+            if(onComplete !== undefined) onComplete();
         });
     }
 
@@ -474,12 +474,12 @@ var hexapong = (function hexapong() {
         if (newstate.clientId !== clientId) {
             // someone else updated server. update his timestamp so we mark him as active
             playerIds[newstate.clientId] = newstate.timeStamp;
-            for (var i in newstate.paddles) {
-                var p = paddles[parseInt(i, 10)];
-                if (p.isWall) continue;
-                p.shape.x = newstate.paddles[i].elements[0];
-                p.shape.y = newstate.paddles[i].elements[1];
-            }
+            // for (var i in newstate.paddles) {
+            //     var p = paddles[parseInt(i, 10)];
+            //     if (p.isWall) continue;
+            //     p.shape.x = newstate.paddles[i].elements[0];
+            //     p.shape.y = newstate.paddles[i].elements[1];
+            // }
         }
 
 
@@ -520,6 +520,23 @@ var hexapong = (function hexapong() {
         createjs.Sound.play("music", createjs.Sound.INTERRUPT_NONE, 0, 0, -1, 0.05);
     }
 
+    function rotateArena(){
+        var deg = 1;
+        var rad = Math.PI*deg/180;
+        arena.shape.rotation += deg;
+        for (var i = 0; i < paddles.length; i++) {
+            var rotateMe = $V([paddles[i].shape.x, paddles[i].shape.y]);
+            var center = $V([arena.shape.x, arena.shape.y]);
+
+            var newx = center.x() + (rotateMe.x()-center.x())*Math.cos(rad) - (rotateMe.y()-center.y())*Math.sin(rad);
+            var newy = center.y() + (rotateMe.x()-center.x())*Math.sin(rad) + (rotateMe.y()-center.y())*Math.cos(rad);
+
+            paddles[i].shape.x = newx;
+            paddles[i].shape.y = newy;
+
+            paddles[i].shape.rotation += 1;
+        }
+    }
 
     function tick(event) {
         paddles.map(function (p) {
@@ -527,6 +544,7 @@ var hexapong = (function hexapong() {
         });
         ball.tick(paddles, arena);
         stage.update();
+        rotateArena();
     }
 
     /* Holds public properties */
@@ -560,9 +578,9 @@ var hexapong = (function hexapong() {
         stage.update();
         /* testing */
         var arenaPoints = arena.getBoundingPoints();
-        for (var i in arenaPoints) {
-            addPoint(arenaPoints[i], stage);
-        }
+        // for (var i in arenaPoints) {
+        //     addPoint(arenaPoints[i], stage);
+        // }
 
         var wallPositions = Array(6);
         wallPositions[1] = true;
@@ -598,6 +616,7 @@ var hexapong = (function hexapong() {
 
             stage.addChild(paddles[i].shape);
         }
+
 
 
         //start game timer   

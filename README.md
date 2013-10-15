@@ -13,4 +13,5 @@ TODO (unordered)
 - [ ] color paddles differently for each player
 - [ ] Keep track of points
 - [ ] make more todos 
-- [ ] Make entire arena rotate
+- [x] Make entire arena rotate
+- [ ] Correct movement of paddles as arena rotates
