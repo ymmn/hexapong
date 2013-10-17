@@ -164,7 +164,6 @@ var hexapong = (function hexapong() {
             return a.add(b).multiply(0.5);
         },
 
-
         lineIntersectCircle: function (line, circle) {
             var closestP = Geometry.getClosestPointToCircle(line[0], line[1], circle.center);
             var dist_v = circle.center.subtract(closestP);
@@ -223,6 +222,36 @@ var hexapong = (function hexapong() {
         _shape.y = 200;
         var _boundingPoints;
 
+
+        /**
+         * returns the side of the hexagon the ball went out on
+         */
+        var _getSideOnDeath = function (ballLoc) {
+            /* get closest bound point indices */
+            var closestPoint0, pointIndex0;
+            var closestPoint1, pointIndex1;
+            for (var i = 0; i < _boundingPoints.length; i++) {
+                var point = _boundingPoints[i];
+                if (closestPoint0 == undefined || ballLoc.distanceFrom(point) < ballLoc.distanceFrom(closestPoint0)) {
+                    closestPoint1 = closestPoint0;
+                    pointIndex1 = pointIndex0;
+                    closestPoint0 = point;
+                    pointIndex0 = i;
+                } else if (closestPoint1 == undefined || ballLoc.distanceFrom(point) < ballLoc.distanceFrom(closestPoint1)) {
+                    closestPoint1 = point;
+                    pointIndex1 = i;
+                }
+            }
+
+            /* determine side from closest bound point indices */
+            var side = Math.min(pointIndex0, pointIndex1);
+            if (side == 0 && Math.max(pointIndex0, pointIndex1) == 5) { // check if side 5 or 0
+                side = 5;
+            }
+
+            return side;
+        }
+
         /**
          * returns true if a point (vector) is inside the game arena
          */
@@ -244,6 +273,17 @@ var hexapong = (function hexapong() {
             });
             return _boundingPoints;
         };
+
+        this.tick = function (ball, paddles) {
+            /* check if ball goes out of bounds and update score */
+            var ballLoc = $V([ball.shape.x, ball.shape.y]);
+            if (!this.isPointInside(ballLoc)) {
+                createjs.Sound.play("death", createjs.Sound.INTERRUPT_LATE, 0, 0, 0, 0.2);
+                ball.reset();
+                var deadPlayer = _getSideOnDeath(ballLoc);
+                paddles[deadPlayer].score += 1;
+            }
+        }
 
         this.shape = _shape;
     }
@@ -282,7 +322,7 @@ var hexapong = (function hexapong() {
         /**
          * restarts the ball in the middle of the arena
          */
-        var _reset = function () {
+        this.reset = function () {
             _shape.x = start_loc.x();
             _shape.y = start_loc.y();
         };
@@ -310,11 +350,6 @@ var hexapong = (function hexapong() {
                     break;
                 }
             }
-            if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
-                createjs.Sound.play("death", createjs.Sound.INTERRUPT_LATE, 0, 0, 0, 0.2);
-                // _updateBallLoc();
-                _reset();
-            }
             _shape.x += direction_vec.x() * _speed;
             _shape.y += direction_vec.y() * _speed;
         };
@@ -335,6 +370,7 @@ var hexapong = (function hexapong() {
         var Y_MAJOR = "y";
         var _majorAxis = Math.abs(direction_vec.x()) > Math.abs(direction_vec.y()) ? X_MAJOR : Y_MAJOR;
 
+        var _score = 0;
 
         var _shape = new createjs.Shape();
         var _length = PADDLE_DIMS.length;
@@ -421,6 +457,7 @@ var hexapong = (function hexapong() {
             }
         };
 
+        this.score = _score;
         this.shape = _shape;
 
     }
@@ -543,8 +580,9 @@ var hexapong = (function hexapong() {
             p.tick();
         });
         ball.tick(paddles, arena);
+        arena.tick(ball, paddles);
         stage.update();
-        rotateArena();
+        // rotateArena();
     }
 
     /* Holds public properties */
@@ -627,7 +665,8 @@ var hexapong = (function hexapong() {
 
         var fpsOut = document.getElementById('fps'),
             pingOut = document.getElementById('ping'),
-            activePlayersOut = document.getElementById('active-players');
+            activePlayersOut = document.getElementById('active-players')
+            scoreOut = document.getElementById('score');
         setInterval(function () {
             fpsOut.innerHTML = createjs.Ticker.getMeasuredFPS().toFixed(1) + " fps";
             pingOut.innerHTML = (accPing / pingCnt).toFixed(1) + " ping";
@@ -639,7 +678,13 @@ var hexapong = (function hexapong() {
                 }
             }
             activePlayersOut.innerHTML = Object.keys(playerIds).length + " other active players.";
+            var scoreString = "";
+            for (var i = 0; i < paddles.length; i++) {
+                scoreString += "Player " + i + ": " + paddles[i].score + "<br/>";
+            }
+            scoreOut.innerHTML = "Score:: " + scoreString;
         }, 1000);
+
 
         // begin loading content (only sounds to load)
         var manifest = [{
