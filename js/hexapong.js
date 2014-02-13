@@ -9,7 +9,7 @@ var hexapong = (function hexapong() {
         },
         BALL_RADIUS = 10,
         TARGET_FPS = 40,
-        DEFAULT_BALL_SPEED = 10;
+        DEFAULT_BALL_SPEED = 7;
 
     var KEYCODE_ENTER = 13,
         KEYCODE_SPACE = 32,
@@ -33,6 +33,7 @@ var hexapong = (function hexapong() {
             clientId: undefined,
             heartbeat: {}
         };
+    var backgroundMusic;
     var clientId,
         /* map player ids to their last timestamp */
         playerIds = {};
@@ -218,9 +219,10 @@ var hexapong = (function hexapong() {
      */
     function PongArena() {
         var _shape = new createjs.Shape();
-        _shape.graphics.beginRadialGradientFill(["#FF0", "#0FF"], [0, 1], 0, 0, 0, 0, 0, 200).drawPolyStar(0, 0, 200, 6, 0, -90);
-        _shape.x = 480;
-        _shape.y = 200;
+        _shape.graphics.beginRadialGradientFill(["#AAA", "#FFF"], [0, 1], 0, 0, 0, 0, 0, 300).drawPolyStar(0, 0, 300, 6, 0, -90)
+                       .beginStroke("black").drawPolyStar(0, 0, 300, 6, 0, -90);
+        _shape.x = 300;
+        _shape.y = 300;
         var _boundingPoints;
 
         /**
@@ -240,7 +242,7 @@ var hexapong = (function hexapong() {
             }).filter(function (a) {
                 return a.length > 0;
             }).slice(1, 7).map(function (a) {
-                return $V(a).add($V([480, 200]));
+                return $V(a).add($V([300, 300]));
             });
             return _boundingPoints;
         };
@@ -251,9 +253,22 @@ var hexapong = (function hexapong() {
 
     function PongBall(direction_vec, start_loc) {
 
+        var PREP = -102;
+        var PLAYING = -103; 
+        var READY_LENGTH = 100;
+
+        var _state = PREP;
+        var _timer = 0;
+
+        var rdyText = new createjs.Text("Ready?", "16px Letter Gothic Std bold", "black");
+        rdyText.textAlign = "center";
+        rdyText.x = start_loc.x();
+        rdyText.y = start_loc.y();
+        stage.addChild(rdyText);
+
         var _speed = DEFAULT_BALL_SPEED;
         var _shape = new createjs.Shape();
-        _shape.graphics.beginRadialGradientFill(["#F80", "#F00"], [0.2, 0.8], 0, 0, 0, 0, 0, BALL_RADIUS).drawCircle(0, 0, BALL_RADIUS);
+        _shape.graphics.beginRadialGradientFill(["#F00", "#F00"], [0.2, 0.8], 0, 0, 0, 0, 0, BALL_RADIUS).drawCircle(0, 0, BALL_RADIUS);
         _shape.x = start_loc.x();
         _shape.y = start_loc.y();
 
@@ -285,6 +300,8 @@ var hexapong = (function hexapong() {
         var _reset = function () {
             _shape.x = start_loc.x();
             _shape.y = start_loc.y();
+            _state = PREP;
+            _timer = 0;
         };
 
         var _updateBallLoc = function () {
@@ -292,31 +309,41 @@ var hexapong = (function hexapong() {
                 loc: $V([_shape.x, _shape.y]),
                 dir: direction_vec
             };
-            updateServer();
+            // updateServer();
         };
 
         this.tick = function (paddles, arena) {
-            for (var i = 0; i < paddles.length; i++) {
-                if (_collideWithPaddle(paddles[i].getBoundingPoints())) {
-                    _shape.x += direction_vec.x() * _speed;
-                    _shape.y += direction_vec.y() * _speed;
-                    /* make sure we get the ball outside of the paddle */
-                    while (_collideWithPaddle(paddles[i].getBoundingPoints())) {
+            if( _state == PLAYING ) {
+                for (var i = 0; i < paddles.length; i++) {
+                    if (_collideWithPaddle(paddles[i].getBoundingPoints())) {
                         _shape.x += direction_vec.x() * _speed;
                         _shape.y += direction_vec.y() * _speed;
+                        /* make sure we get the ball outside of the paddle */
+                        while (_collideWithPaddle(paddles[i].getBoundingPoints())) {
+                            _shape.x += direction_vec.x() * _speed;
+                            _shape.y += direction_vec.y() * _speed;
+                        }
+                        createjs.Sound.play("bounce", createjs.Sound.INTERUPT_LATE);
+                        _updateBallLoc();
+                        break;
                     }
-                    createjs.Sound.play("bounce", createjs.Sound.INTERUPT_LATE);
-                    _updateBallLoc();
-                    break;
+                }
+                if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
+                    backgroundMusic.pause();
+                    createjs.Sound.play("death", createjs.Sound.INTERRUPT_LATE, 0, 0, 0, 0.05);
+                    // _updateBallLoc();
+                    _reset();
+                }
+                _shape.x += direction_vec.x() * _speed;
+                _shape.y += direction_vec.y() * _speed;
+            } else {
+                rdyText.alpha = 1.0 - (_timer / READY_LENGTH);
+                if(_timer >= READY_LENGTH) {
+                    _state = PLAYING;
+                    backgroundMusic.play();
                 }
             }
-            if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
-                createjs.Sound.play("death", createjs.Sound.INTERRUPT_LATE, 0, 0, 0, 0.2);
-                // _updateBallLoc();
-                _reset();
-            }
-            _shape.x += direction_vec.x() * _speed;
-            _shape.y += direction_vec.y() * _speed;
+            _timer++;
         };
 
         this.shape = _shape;
@@ -339,7 +366,8 @@ var hexapong = (function hexapong() {
         var _shape = new createjs.Shape();
         var _length = PADDLE_DIMS.length;
         if (len !== undefined) _length = len;
-        _shape.graphics.beginFill('rgba(255,0,0,1)').drawRect(0, 0, _length, PADDLE_DIMS.width);
+        _shape.graphics.beginStroke("black").drawRect(0, 0, _length, PADDLE_DIMS.width)
+                       .beginFill('rgba(255,0,0,1)').drawRect(0, 0, _length, PADDLE_DIMS.width);
         _shape.rotation = Math.atan(direction_vec.y() / direction_vec.x()) * (180 / Math.PI);
 
         var v = direction_vec.toUnitVector().multiply(_length);
@@ -410,14 +438,14 @@ var hexapong = (function hexapong() {
             }
             if (should_move) {
                 //console.log(newx + " is bigger than " + bounds.left.x());
-                // _shape.x = newx;
-                // _shape.y = newy;
-                gameState["paddles"][index] = $V([newx, newy]);
-                gameState.ball = {};
-                updateServer(function(){
-                    _shape.x = newx;
-                    _shape.y = newy;
-                });
+                _shape.x = newx;
+                _shape.y = newy;
+                // gameState["paddles"][index] = $V([newx, newy]);
+                // gameState.ball = {};
+                // updateServer(function(){
+                //     _shape.x = newx;
+                //     _shape.y = newy;
+                // });
             }
         };
 
@@ -517,7 +545,7 @@ var hexapong = (function hexapong() {
 
     function doneLoading(event) {
         // start the music
-        createjs.Sound.play("music", createjs.Sound.INTERRUPT_NONE, 0, 0, -1, 0.05);
+        backgroundMusic = createjs.Sound.play("music", createjs.Sound.INTERRUPT_NONE, 0, 0, -1, 0.35);
     }
 
     function rotateArena(){
@@ -544,7 +572,7 @@ var hexapong = (function hexapong() {
         });
         ball.tick(paddles, arena);
         stage.update();
-        rotateArena();
+        // rotateArena();
     }
 
     /* Holds public properties */
@@ -583,8 +611,8 @@ var hexapong = (function hexapong() {
         // }
 
         var wallPositions = Array(6);
-        wallPositions[1] = true;
-        wallPositions[4] = true;
+        // wallPositions[1] = true;
+        // wallPositions[4] = true;
 
         /* create the paddles */
         paddles = Array(6);
@@ -650,7 +678,7 @@ var hexapong = (function hexapong() {
             src: "assets/bounce.mp3"
         }, {
             id: "death",
-            src: "assets/death.mp3"
+            src: "assets/death.wav"
         }];
 
         preload = new createjs.LoadQueue();

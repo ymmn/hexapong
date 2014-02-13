@@ -7,15 +7,29 @@
 	<script type="text/javascript" src="lib/preloadjs-NEXT.min.js"></script>
 	<script src='https://cdn.firebase.com/v0/firebase.js'></script>
 	<script src="js/hexapong.js"></script>
+	<link type="text/css" rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.0/css/bootstrap.min.css"></link>
 </head>
 <body onload="hexapong.init()">
-	<p><span id="fps"></span></p>
-	<p><span id="ping"></span></p>
-	<p><span id="active-players"></span></p>
-	<p>Controls:</p>
-	<p>Player1: left arrow + right arrow</p>
-	<p>Player2: M + N</p>
-	<p>Player3: Z + X</p>
-	<canvas id="canvas" width="960" height="400"></canvas>
+	<a href="https://github.com/ymmn/hexapong"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
+	<div style="margin-top:30px" class="container">
+		<div class="row">
+			<div class="col-xs-4">
+				<h1>Controls:</h1>
+				<ul>
+					<li>left arrow + right arrow</li>
+					<li>M + N</li>
+					<li>Z + X</li>
+				</ul>
+				<br>
+				<p><span id="fps"></span></p>
+				<p><span id="ping"></span></p>
+				<p><span id="active-players"></span></p>
+				<!-- <button id="mute" class="btn btn-large">Mute Sound</button> -->
+			</div>
+			<div class="col-xs-4 canvasContainer">
+				<canvas id="canvas" width="600" height="600"></canvas>
+			</div>
+		</div>
+	</div>
 </body>
 </html>
