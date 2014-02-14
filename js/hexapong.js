@@ -14,8 +14,13 @@ var hexapong = (function hexapong() {
     var KEYCODE_ENTER = 13,
         KEYCODE_SPACE = 32,
         KEYCODE_UP = 38,
+        KEYCODE_DOWN = 40,
         KEYCODE_LEFT = 37,
         KEYCODE_RIGHT = 39,
+        KEYCODE_W = 87,
+        KEYCODE_A = 65,
+        KEYCODE_S = 83,
+        KEYCODE_D = 68,
         KEYCODE_M = 77,
         KEYCODE_N = 78,
         KEYCODE_J = 74,
@@ -54,58 +59,38 @@ var hexapong = (function hexapong() {
     document.onkeydown = handleKeyDown;
     document.onkeyup = handleKeyUp;
 
-    function handleKeyDown(e) {
+    function handleKeyPress(e, down) {
         //cross browser issues exist
         if (!e) {
             e = window.event;
         }
         switch (e.keyCode) {
+        case KEYCODE_UP:
+            lfHeld[0] = down;
+            return false;
+        case KEYCODE_DOWN:
+            rtHeld[0] = down;
+            return false;
         case KEYCODE_LEFT:
-            lfHeld[0] = true;
+            lfHeld[1] = down;
             return false;
         case KEYCODE_RIGHT:
-            rtHeld[0] = true;
+            rtHeld[1] = down;
             return false;
-        case KEYCODE_Z:
-            lfHeld[1] = true;
+        case KEYCODE_W:
+            lfHeld[2] = down;
             return false;
-        case KEYCODE_X:
-            rtHeld[1] = true;
-            return false;
-        case KEYCODE_N:
-            lfHeld[2] = true;
-            return false;
-        case KEYCODE_M:
-            rtHeld[2] = true;
+        case KEYCODE_S:
+            rtHeld[2] = down;
             return false;
         }
     }
+    function handleKeyDown(e) {
+        handleKeyPress(e, true);
+    }
 
     function handleKeyUp(e) {
-        //cross browser issues exist
-        if (!e) {
-            e = window.event;
-        }
-        switch (e.keyCode) {
-        case KEYCODE_LEFT:
-            lfHeld[0] = false;
-            break;
-        case KEYCODE_RIGHT:
-            rtHeld[0] = false;
-            break;
-        case KEYCODE_Z:
-            lfHeld[1] = false;
-            break;
-        case KEYCODE_X:
-            rtHeld[1] = false;
-            break;
-        case KEYCODE_N:
-            lfHeld[2] = false;
-            break;
-        case KEYCODE_M:
-            rtHeld[2] = false;
-            break;
-        }
+        handleKeyPress(e, false);
     }
 
 
