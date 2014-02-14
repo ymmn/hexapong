@@ -9,7 +9,7 @@ var hexapong = (function hexapong() {
         },
         BALL_RADIUS = 10,
         TARGET_FPS = 40,
-        DEFAULT_BALL_SPEED = 7;
+        DEFAULT_BALL_SPEED = 2.5;
 
     var KEYCODE_ENTER = 13,
         KEYCODE_SPACE = 32,
@@ -18,10 +18,18 @@ var hexapong = (function hexapong() {
         KEYCODE_RIGHT = 39,
         KEYCODE_M = 77,
         KEYCODE_N = 78,
+        KEYCODE_J = 74,
+        KEYCODE_U = 85,
+        KEYCODE_Y = 89,
+        KEYCODE_G = 71,
+        KEYCODE_B = 66,
         KEYCODE_X = 88,
         KEYCODE_Z = 90;
 
-
+    var score = 0;
+    var highscore = 0;
+    var scoreContainer = document.getElementById("score");
+    var highscoreContainer = document.getElementById("highscore");
 
     var lfHeld = Array(3),
         rtHeld = Array(3);
@@ -288,11 +296,17 @@ var hexapong = (function hexapong() {
             if (collidingEdge !== null) {
                 direction_vec = Geometry.calculateVectorOfReflection(direction_vec,
                     Geometry.getUnitNormalVectorFromEdge(collidingEdge));
+                score += 1;
+                _updateScore();
                 return true;
             }
             return false;
         };
 
+
+        var _updateScore = function () {
+            scoreContainer.innerHTML = score;
+        };
 
         /**
          * restarts the ball in the middle of the arena
@@ -331,16 +345,22 @@ var hexapong = (function hexapong() {
                 if (!arena.isPointInside($V([_shape.x, _shape.y]))) {
                     backgroundMusic.pause();
                     createjs.Sound.play("death", createjs.Sound.INTERRUPT_LATE, 0, 0, 0, 0.05);
+                    highscore = Math.max(score, highscore);
+                    highscoreContainer.innerHTML = highscore;
+                    _speed = DEFAULT_BALL_SPEED;
+                    score = 0;
+                    _updateScore(score);
                     // _updateBallLoc();
                     _reset();
                 }
                 _shape.x += direction_vec.x() * _speed;
                 _shape.y += direction_vec.y() * _speed;
+                _speed += 0.005;
             } else {
                 rdyText.alpha = 1.0 - (_timer / READY_LENGTH);
                 if(_timer >= READY_LENGTH) {
                     _state = PLAYING;
-                    backgroundMusic.play();
+                    backgroundMusic.resume();
                 }
             }
             _timer++;
@@ -691,3 +711,5 @@ var hexapong = (function hexapong() {
     return p;
 
 }());
+
+hexapong.init();
